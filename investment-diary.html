@@ -1,0 +1,1564 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<title>投资日记 · Night Ledger</title>
+<link rel="stylesheet" href="./tokens.css" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700;9..144,800&family=Inter+Tight:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+/* Mobile App rebuild · bottom-tab architecture (V1.1 layout, V1.0 data schema unchanged)
+ * audience: 投资小白 · stance: 傻瓜式操作 · one CTA per screen · 44px touch targets
+ * tokens: tokens.css (night-ledger brass+emerald) · flex-only layout, no horizontal scroll
+ */
+* { box-sizing: border-box; }
+/* author display rules (.overlay/.card/.btn/.flow__foot…) and inline styles would
+   otherwise override the UA [hidden]{display:none}; guard every JS-toggled element */
+[hidden] { display: none !important; }
+html, body { margin: 0; padding: 0; height: 100%; overflow-x: clip; }
+body {
+  background: var(--color-paper); color: var(--color-ink);
+  font-family: var(--font-body); font-size: 16px; line-height: 1.58;
+  display: flex; justify-content: center;
+  -webkit-font-smoothing: antialiased;
+}
+h1,h2,h3 { font-family: var(--font-display); font-style: normal; font-weight: 700;
+  letter-spacing: -0.01em; line-height: 1.15; margin: 0; color: var(--color-ink); overflow-wrap: anywhere; }
+p { margin: 0; }
+button { font-family: var(--font-body); }
+a { color: inherit; text-decoration: none; }
+.muted { color: var(--color-ink-2); font-size: var(--text-sm); }
+.tnum { font-variant-numeric: tabular-nums; }
+.pos { color: var(--color-emerald) !important; }
+.neg { color: var(--color-risk) !important; }
+
+/* ===== App shell (phone column) ===== */
+.app {
+  width: 100%; max-width: 30rem; height: 100dvh;
+  display: flex; flex-direction: column; position: relative;
+  background: var(--color-paper);
+}
+@media (min-width: 48rem) {
+  .app { border-inline: var(--rule-hair) solid var(--color-paper-4); box-shadow: 0 0 80px -30px #000; }
+}
+
+/* ===== Top app bar ===== */
+.appbar {
+  flex-shrink: 0; display: flex; align-items: center; gap: 10px;
+  padding: 10px 16px;
+  background: var(--color-layer-pill);
+  backdrop-filter: blur(18px) saturate(160%); -webkit-backdrop-filter: blur(18px) saturate(160%);
+  border-bottom: var(--rule-hair) solid var(--color-paper-4);
+  z-index: 40;
+}
+.appbar__glyph {
+  width: 32px; height: 32px; flex-shrink: 0; display: grid; place-items: center;
+  border-radius: var(--radius-full);
+  background: linear-gradient(135deg, var(--color-accent), var(--color-emerald));
+  color: var(--color-accent-ink); font-family: var(--font-outlier); font-weight: 600; font-size: var(--text-xs);
+  box-shadow: inset 0 -3px 0 var(--color-layer-inset);
+}
+.appbar__title { font-family: var(--font-display); font-weight: 700; font-size: var(--text-base); line-height: 1.1; }
+.appbar__sub { color: var(--color-ink-3); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; margin-top: 1px; }
+.appbar__date { margin-left: auto; text-align: right; font-size: var(--text-xs); color: var(--color-ink-2); font-variant-numeric: tabular-nums; }
+
+/* ===== Pages container ===== */
+.pages { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior-y: contain; }
+.page { display: none; padding: 16px 16px 24px; flex-direction: column; gap: 14px; }
+.page.active { display: flex; animation: pg-in var(--dur) var(--ease-out); }
+@keyframes pg-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+.page-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.page-head h1 { font-size: var(--text-2xl); }
+.page-head .sub { color: var(--color-ink-3); font-size: var(--text-xs); margin-top: 2px; }
+
+/* ===== Cards ===== */
+.card {
+  background: var(--color-paper-2);
+  border: var(--rule-hair) solid var(--color-paper-4);
+  border-radius: var(--radius-lg);
+  padding: 16px; display: flex; flex-direction: column; gap: 12px;
+  min-width: 0;
+}
+.card--hero {
+  padding: 22px 18px; align-items: stretch; text-align: center; gap: 14px;
+  background:
+    radial-gradient(120% 90% at 100% 0%, var(--color-accent-soft), transparent 55%),
+    radial-gradient(120% 90% at 0% 100%, var(--color-emerald-soft), transparent 55%),
+    var(--color-paper-2);
+}
+.card--recap { border-color: var(--color-emerald-rule); }
+.card__kicker { color: var(--color-ink-3); font-size: var(--text-xs); letter-spacing: 0.1em; text-transform: uppercase; }
+
+/* ===== Buttons (44px touch minimum) ===== */
+.btn {
+  --_bg: var(--color-paper-3); --_fg: var(--color-ink); --_bd: var(--color-paper-4);
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  min-height: 44px; padding: 10px 16px; border-radius: var(--radius-md);
+  font-size: var(--text-sm); font-weight: 500; white-space: nowrap;
+  color: var(--_fg); background: var(--_bg); border: var(--rule-hair) solid var(--_bd);
+  cursor: pointer;
+  transition: background-color var(--dur-fast) var(--ease-out),
+              border-color var(--dur-fast) var(--ease-out),
+              color var(--dur-fast) var(--ease-out),
+              filter var(--dur-fast) var(--ease-out),
+              transform var(--dur-fast) var(--ease-out),
+              opacity var(--dur-fast) var(--ease-out);
+}
+.btn:active { transform: translateY(1px) scale(0.99); }
+.btn:focus-visible { outline: 3px solid var(--color-focus-ring); outline-offset: 2px; }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn--accent { --_bg: var(--color-accent); --_fg: var(--color-accent-ink); --_bd: var(--color-accent); }
+.btn--accent:active { filter: brightness(.92); }
+.btn--emerald { --_bg: var(--color-emerald); --_fg: #06281a; --_bd: var(--color-emerald); }
+.btn--risk { --_bg: var(--color-risk-soft); --_fg: var(--color-risk); --_bd: var(--color-risk-rule, var(--color-risk-soft)); }
+.btn--ghost { --_bg: transparent; --_bd: transparent; --_fg: var(--color-ink-2); }
+.btn--ghost:active { --_bg: var(--color-paper-3); }
+.btn--block { width: 100%; }
+.btn--lg { min-height: 54px; font-size: 1.05rem; font-weight: 600; border-radius: 12px; }
+.btn--sm { min-height: 36px; padding: 6px 12px; font-size: var(--text-xs); border-radius: var(--radius-sm); }
+
+/* ===== Pills / badges ===== */
+.pill { display: inline-flex; align-items: center; gap: 6px; align-self: center;
+  padding: 5px 12px; border-radius: var(--radius-full); font-size: var(--text-xs); font-weight: 500;
+  background: var(--color-paper-3); color: var(--color-ink-2); border: var(--rule-hair) solid var(--color-paper-4); }
+.pill--ok { background: var(--color-emerald-soft); color: var(--color-emerald); border-color: var(--color-emerald-rule); }
+.pill--wait { background: var(--color-accent-soft); color: var(--color-accent); border-color: var(--color-accent-rule); }
+.pill--day { background: var(--color-blue-soft); color: var(--color-blue); border-color: var(--color-blue-rule); }
+.badge-opt { display: inline-flex; align-items: center; padding: 1px 8px; border-radius: var(--radius-full);
+  font-size: 10px; font-weight: 500; color: var(--color-blue); background: var(--color-blue-soft);
+  border: var(--rule-hair) solid var(--color-blue-rule); letter-spacing: .04em; }
+
+/* ===== Hero CTA ===== */
+.hero-q { font-size: var(--text-xl); color: var(--color-ink); }
+.hero-hint { color: var(--color-ink-2); font-size: var(--text-sm); }
+.hero-hint b { color: var(--color-accent); }
+
+/* ===== Mini stats ===== */
+.mini-stats { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 6px; }
+.ms { text-align: center; padding: 10px 6px; border-radius: var(--radius-md); background: var(--color-paper-3); min-width: 0; }
+.ms .lab { display: block; color: var(--color-ink-3); font-size: 10px; letter-spacing: .06em; margin-bottom: 4px; }
+.ms .val { display: block; font-size: 13px; line-height: 1.3; font-weight: 600; font-variant-numeric: tabular-nums;
+  color: var(--color-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.stats-note { margin: 8px 2px 0; font-size: 11px; line-height: 1.5; text-align: center; color: var(--color-ink-3); }
+
+/* ===== Recap card (回看入口) ===== */
+.recap-head { display: flex; align-items: center; gap: 8px; }
+.recap-date { font-family: var(--font-display); font-weight: 600; font-size: var(--text-base); }
+.recap-snippet {
+  color: var(--color-ink-2); font-size: var(--text-sm); line-height: 1.7;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+  white-space: pre-wrap;
+}
+.recap-empty { text-align: center; color: var(--color-ink-3); font-size: var(--text-sm); padding: 6px 0; }
+.recap-empty .glyph { font-size: 2rem; display: block; margin-bottom: 8px; }
+
+/* ===== Guide collapsible ===== */
+details.guide {
+  background: var(--color-blue-soft); border: var(--rule-hair) dashed var(--color-blue-rule);
+  border-radius: var(--radius-md); padding: 12px 14px; color: var(--color-ink-2); font-size: var(--text-sm);
+}
+details.guide summary { cursor: pointer; font-weight: 600; color: var(--color-ink); list-style: none; }
+details.guide summary::-webkit-details-marker { display: none; }
+details.guide summary::before { content: "💡 "; }
+details.guide ol { margin: 10px 0 0; padding-left: 20px; display: grid; gap: 6px; line-height: 1.65; }
+
+/* ===== Forms ===== */
+.field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.field > label { font-size: var(--text-xs); color: var(--color-ink-2); font-weight: 500;
+  display: flex; align-items: center; gap: 8px; }
+.input {
+  background: var(--color-paper); border: var(--rule-hair) solid var(--color-paper-4);
+  color: var(--color-ink); border-radius: var(--radius-md);
+  padding: 0 13px; font-size: 16px; /* prevents iOS zoom */
+  font-family: var(--font-body); width: 100%;
+  min-height: 44px;
+  transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+}
+.input::placeholder { color: var(--color-ink-muted); }
+.input:focus { outline: none; border-color: var(--color-accent-rule); box-shadow: 0 0 0 3px var(--color-accent-soft); }
+textarea.input { padding: 12px 13px; line-height: 1.7; resize: vertical; min-height: 160px; }
+select.input { appearance: none; padding-right: 32px;
+  background-image: linear-gradient(45deg, transparent 50%, var(--color-ink-3) 50%), linear-gradient(135deg, var(--color-ink-3) 50%, transparent 50%);
+  background-position: calc(100% - 16px) 52%, calc(100% - 11px) 52%; background-size: 5px 5px, 5px 5px; background-repeat: no-repeat; }
+.helper { font-size: var(--text-xs); color: var(--color-ink-3); line-height: 1.55; }
+.f-err { display: block; font-size: var(--text-xs); color: var(--color-risk); min-height: 1.05em; line-height: 1.3; }
+.field.has-error .input { border-color: var(--color-risk-rule); }
+.form-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 22rem) { .form-grid2 { grid-template-columns: 1fr; } }
+.section-label { display: flex; align-items: center; gap: 8px; font-size: var(--text-sm); font-weight: 600; color: var(--color-ink); }
+
+/* ===== Chips ===== */
+.chiprow { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip {
+  display: inline-flex; align-items: center; gap: 5px; min-height: 38px;
+  padding: 7px 14px; border-radius: var(--radius-full);
+  font-size: var(--text-sm); color: var(--color-ink-2);
+  background: var(--color-paper-3); border: var(--rule-hair) solid var(--color-paper-4);
+  cursor: pointer; user-select: none; white-space: nowrap;
+  transition: color var(--dur-fast), border-color var(--dur-fast), background var(--dur-fast), transform var(--dur-fast);
+}
+.chip:active { transform: scale(.97); }
+.chip:focus-visible { outline: 3px solid var(--color-focus-ring); outline-offset: 2px; }
+.chip[aria-pressed="true"] { background: var(--color-accent-soft); color: var(--color-accent); border-color: var(--color-accent-rule); }
+.chip[data-variant="emerald"][aria-pressed="true"] { background: var(--color-emerald-soft); color: var(--color-emerald); border-color: var(--color-emerald-rule); }
+.chip[data-variant="blue"][aria-pressed="true"] { background: var(--color-blue-soft); color: var(--color-blue); border-color: var(--color-blue-rule); }
+.chip[data-variant="risk"][aria-pressed="true"] { background: var(--color-risk-soft); color: var(--color-risk); border-color: var(--color-risk-rule); }
+
+/* ===== Holding cards ===== */
+.hlist { display: flex; flex-direction: column; gap: 12px; }
+.hcard { background: var(--color-paper-2); border: var(--rule-hair) solid var(--color-paper-4);
+  border-radius: var(--radius-lg); padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+.hcard__top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.hcard__name { font-weight: 600; font-size: var(--text-base); color: var(--color-ink); }
+.hcard__date { color: var(--color-ink-3); font-size: var(--text-xs); margin-top: 2px; font-variant-numeric: tabular-nums; }
+.meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.meta { background: var(--color-paper-3); border-radius: var(--radius-md); padding: 8px 12px; min-width: 0; }
+.meta .k { display: block; color: var(--color-ink-3); font-size: 10px; margin-bottom: 2px; }
+.meta .v { font-size: var(--text-sm); font-variant-numeric: tabular-nums; color: var(--color-ink);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+.price-box { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+  background: var(--color-paper-3); border-radius: var(--radius-md); padding: 10px 12px; }
+.price-box .pv { font-size: var(--text-lg); font-weight: 600; font-variant-numeric: tabular-nums; color: var(--color-ink); }
+.price-box .pv small { display: block; font-size: 10px; color: var(--color-ink-3); font-weight: 400; }
+.price-box__btns { display: inline-flex; gap: 6px; flex-shrink: 0; }
+.pl-row { display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+  border-top: var(--rule-hair) dashed var(--color-paper-4); padding-top: 10px; }
+.pl-row .lab { color: var(--color-ink-3); font-size: var(--text-xs); }
+.pl-row .vals { display: inline-flex; gap: 10px; align-items: baseline; }
+.pl-row .amt { font-size: var(--text-lg); font-weight: 700; font-variant-numeric: tabular-nums; }
+.pl-row .pct { font-size: var(--text-sm); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* ===== Empty states ===== */
+.empty { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px;
+  padding: 32px 20px; color: var(--color-ink-3); }
+.empty .glyph { font-size: 2.2rem; }
+.empty .t { color: var(--color-ink); font-weight: 600; font-family: var(--font-display); font-size: var(--text-lg); }
+.empty .s { font-size: var(--text-sm); max-width: 26ch; }
+
+/* ===== Calendar ===== */
+.cal-headrow { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.cal-title { font-weight: 600; font-variant-numeric: tabular-nums; color: var(--color-accent); font-size: var(--text-base); }
+.cal-pager { display: inline-flex; align-items: center; gap: 2px; }
+.cal-pager button { width: 36px; height: 36px; display: grid; place-items: center; border-radius: var(--radius-sm);
+  background: transparent; color: var(--color-ink-2); border: none; font-size: var(--text-lg); cursor: pointer; }
+.cal-pager button:active { background: var(--color-paper-3); }
+.cal-count { color: var(--color-ink-3); font-size: var(--text-xs); font-variant-numeric: tabular-nums; min-width: 64px; text-align: center; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0,1fr)); gap: 4px; }
+.cal-dow { text-align: center; color: var(--color-ink-3); font-size: 10px; padding: 4px 0; }
+.cal-cell {
+  position: relative; aspect-ratio: 1/1; border-radius: 10px;
+  display: grid; place-items: center; font-size: var(--text-sm); color: var(--color-ink);
+  cursor: pointer; background: transparent; border: none; font-family: var(--font-body);
+  min-height: 40px;
+  transition: background var(--dur-fast), color var(--dur-fast);
+}
+.cal-cell:active { background: var(--color-paper-3); }
+.cal-cell.out { color: var(--color-ink-muted); opacity: .4; cursor: default; }
+.cal-cell.today { outline: 2px solid var(--color-blue); outline-offset: -2px; color: var(--color-blue); font-weight: 600; }
+.cal-cell.has::after { content: ""; position: absolute; left: 50%; bottom: 5px; transform: translateX(-50%);
+  width: 6px; height: 6px; border-radius: 50%; background: var(--color-emerald); }
+.cal-cell.today.has::after { background: var(--color-blue); }
+.cal-cell.picked { background: var(--color-accent-soft); color: var(--color-accent); font-weight: 600; }
+.cal-foot { color: var(--color-ink-3); font-size: 10px; display: flex; gap: 12px; flex-wrap: wrap; }
+.cal-foot b { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 3px; }
+.cal-foot b.e { background: var(--color-emerald); }
+.cal-foot b.t { outline: 2px solid var(--color-blue); outline-offset: -1px; }
+
+/* ===== Journal entries ===== */
+.jlist { display: flex; flex-direction: column; gap: 12px; }
+.entry { background: var(--color-paper-2); border: var(--rule-hair) solid var(--color-paper-4);
+  border-left: 3px solid var(--color-accent-rule);
+  border-radius: var(--radius-lg); padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+.entry__top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.entry__date { font-family: var(--font-display); font-size: var(--text-base); font-weight: 600; }
+.entry__tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.entry__body { font-size: var(--text-sm); line-height: 1.72; white-space: pre-wrap; color: var(--color-ink); }
+.entry__snap { background: var(--color-paper-3); border-radius: var(--radius-md); padding: 10px 12px;
+  color: var(--color-ink-2); font-size: 11px; line-height: 1.7; font-variant-numeric: tabular-nums;
+  display: flex; flex-direction: column; gap: 4px; }
+.tag { display: inline-flex; align-items: center; gap: 4px; padding: 2px 9px; border-radius: var(--radius-full);
+  font-size: 10px; border: var(--rule-hair) solid transparent; }
+.tag--link { background: var(--color-accent-soft); color: var(--color-accent); border-color: var(--color-accent-rule); }
+.tag--mood { background: var(--color-emerald-soft); color: var(--color-emerald); border-color: var(--color-emerald-rule); }
+.tag--why { background: var(--color-blue-soft); color: var(--color-blue); border-color: var(--color-blue-rule); }
+
+/* ===== Settings rows ===== */
+.group-title { font-size: var(--text-xs); color: var(--color-ink-3); letter-spacing: .08em;
+  text-transform: uppercase; padding: 4px 4px 0; }
+.list-card { background: var(--color-paper-2); border: var(--rule-hair) solid var(--color-paper-4);
+  border-radius: var(--radius-lg); overflow: hidden; }
+.row-btn {
+  display: flex; align-items: center; gap: 12px; width: 100%;
+  min-height: 52px; padding: 13px 16px; background: none; border: none;
+  border-bottom: var(--rule-hair) solid var(--color-paper-4);
+  color: var(--color-ink); font-size: var(--text-sm); text-align: left; cursor: pointer;
+  font-family: var(--font-body);
+}
+.row-btn:last-child { border-bottom: none; }
+.row-btn:active { background: var(--color-paper-3); }
+.row-btn .ic { width: 22px; text-align: center; flex-shrink: 0; }
+.row-btn .arr { margin-left: auto; color: var(--color-ink-muted); }
+.row-btn small { display: block; color: var(--color-ink-3); font-size: 11px; margin-top: 1px; }
+
+/* ===== Bottom tab bar (single instance, data-tab) ===== */
+.tabbar {
+  flex-shrink: 0; display: grid; grid-template-columns: repeat(4, minmax(0,1fr));
+  border-top: var(--rule-hair) solid var(--color-paper-4);
+  background: var(--color-layer-pill);
+  backdrop-filter: blur(18px) saturate(160%); -webkit-backdrop-filter: blur(18px) saturate(160%);
+  z-index: 50;
+}
+.tab {
+  appearance: none; background: none; border: none; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  min-height: 52px; padding: 6px 2px calc(6px + env(safe-area-inset-bottom));
+  color: var(--color-ink-3); font-size: 11px; font-family: var(--font-body);
+  transition: color var(--dur-fast) var(--ease-out);
+}
+.tab svg { width: 23px; height: 23px; stroke: currentColor; fill: none; stroke-width: 1.8;
+  stroke-linecap: round; stroke-linejoin: round; }
+.tab.is-active { color: var(--color-accent); font-weight: 600; }
+.tab.is-active svg { stroke-width: 2; }
+.tab:focus-visible { outline: 3px solid var(--color-focus-ring); outline-offset: -3px; }
+
+/* ===== Overlays ===== */
+.overlay { position: fixed; inset: 0; z-index: 1000;
+  background: var(--color-layer-scrim); backdrop-filter: blur(3px);
+  display: grid; place-items: center; }
+.overlay.danger { z-index: 1500; }
+.sheet { width: min(100%, 30rem); max-height: 88dvh; overflow-y: auto;
+  background: var(--color-paper-2); border: var(--rule-hair) solid var(--color-paper-4);
+  border-radius: var(--radius-xl); padding: 20px; box-shadow: var(--shadow-lg); position: relative; }
+.cfirm { width: min(calc(100% - 32px), 26rem); }
+.cfirm h2 { font-size: var(--text-xl); }
+.cfirm p { color: var(--color-ink-2); margin: 8px 0 18px; font-size: var(--text-sm); }
+.sheet-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 6px; }
+
+/* Full-screen-ish journal flow */
+.flow {
+  width: min(100%, 30rem); height: 100dvh; max-height: 100dvh;
+  border-radius: 0; display: flex; flex-direction: column; padding: 0; overflow: hidden;
+}
+@media (min-width: 48rem) { .flow { height: 92dvh; border-radius: var(--radius-xl); } }
+.flow__bar { flex-shrink: 0; display: flex; align-items: center; gap: 12px;
+  padding: 12px 14px; border-bottom: var(--rule-hair) solid var(--color-paper-4); }
+.flow__bar .t { font-family: var(--font-display); font-weight: 700; font-size: var(--text-base); }
+.flow__bar .s { color: var(--color-ink-3); font-size: 11px; }
+.icon-btn { width: 38px; height: 38px; flex-shrink: 0; display: grid; place-items: center;
+  border-radius: var(--radius-full); background: transparent; border: none; color: var(--color-ink-3);
+  font-size: var(--text-lg); cursor: pointer; }
+.icon-btn:active { background: var(--color-paper-3); }
+.dots { display: inline-flex; gap: 5px; margin-left: auto; }
+.dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--color-paper-4); display: block; transition: background var(--dur-fast), width var(--dur-fast); }
+.dots i.on { background: var(--color-accent); width: 16px; border-radius: 3px; }
+.flow__body { flex: 1; overflow-y: auto; padding: 18px 16px; display: flex; flex-direction: column; gap: 16px; }
+.flow__foot { flex-shrink: 0; display: flex; flex-direction: column; gap: 8px;
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+  border-top: var(--rule-hair) solid var(--color-paper-4); background: var(--color-paper-2); }
+.flow__foot--row2 { display: grid; grid-template-columns: 1fr 1.4fr; gap: 8px; }
+.step { display: none; flex-direction: column; gap: 16px; }
+.step.on { display: flex; animation: pg-in var(--dur) var(--ease-out); }
+.step-q { font-size: var(--text-xl); font-family: var(--font-display); font-weight: 700; }
+.opt-note { display: flex; gap: 8px; align-items: flex-start;
+  background: var(--color-blue-soft); border: var(--rule-hair) dashed var(--color-blue-rule);
+  border-radius: var(--radius-md); padding: 10px 12px; font-size: var(--text-xs); color: var(--color-ink-2); line-height: 1.6; }
+.preview-box { background: var(--color-paper-3); border-radius: var(--radius-md); padding: 12px;
+  color: var(--color-ink-2); font-size: 11px; line-height: 1.8; font-variant-numeric: tabular-nums; }
+.preview-box b { color: var(--color-ink); display: block; font-size: var(--text-xs); margin-bottom: 4px; }
+
+/* Success step */
+.done-wrap { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px; padding: 8px 0; }
+.done-glyph { width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--color-emerald-soft); border: 2px solid var(--color-emerald-rule); font-size: 1.8rem; }
+.done-wrap h2 { font-size: var(--text-2xl); }
+.done-wrap .s { color: var(--color-ink-2); font-size: var(--text-sm); max-width: 30ch; }
+#js-card { width: 100%; text-align: left; }
+
+/* ===== Onboarding ===== */
+.ob { position: fixed; inset: 0; z-index: 1600; background: var(--color-paper);
+  display: grid; place-items: center; overflow: hidden; }
+.ob-inner { width: min(100%, 30rem); height: 100dvh; display: flex; flex-direction: column; }
+.ob-top { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; }
+.ob-viewport { flex: 1; overflow: hidden; }
+.ob-track { display: flex; height: 100%;
+  transition: transform var(--dur-slow) var(--ease-in-out); }
+.ob-slide { flex: 0 0 100%; padding: 12px 26px 24px; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; text-align: center; gap: 14px; }
+.ob-slide .emoji { font-size: 3.4rem; line-height: 1; }
+.ob-slide h2 { font-size: var(--text-2xl); }
+.ob-slide p { color: var(--color-ink-2); font-size: var(--text-base); line-height: 1.75; max-width: 32ch; }
+.ob-slide .kbd { margin-top: 4px; background: var(--color-paper-2); border: var(--rule-hair) solid var(--color-paper-4);
+  border-radius: var(--radius-lg); padding: 14px 16px; font-size: var(--text-sm); color: var(--color-ink-2);
+  display: grid; gap: 6px; text-align: left; width: 100%; }
+.ob-slide .kbd b { color: var(--color-accent); }
+.ob-dots { display: flex; gap: 7px; justify-content: center; padding: 8px 0 2px; }
+.ob-dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--color-paper-4); transition: background var(--dur-fast), width var(--dur-fast); }
+.ob-dots i.on { background: var(--color-accent); width: 20px; border-radius: 4px; }
+.ob-foot { flex-shrink: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+  padding: 14px 20px calc(20px + env(safe-area-inset-bottom)); }
+.ob-foot .single { grid-column: 1 / -1; }
+
+/* ===== Toast (top-centered within phone width) ===== */
+.toast-wrap { position: fixed; top: 10px; left: 50%; transform: translateX(-50%);
+  width: min(94%, 30rem); z-index: 2000; display: grid; gap: 8px; justify-items: center; pointer-events: none; }
+.toast { width: 100%; background: var(--color-paper-2); border: var(--rule-hair) solid var(--color-paper-4);
+  border-left: 4px solid var(--color-blue); border-radius: var(--radius-md); padding: 10px 14px;
+  box-shadow: var(--shadow-md); animation: tin var(--dur) var(--ease-out); }
+@keyframes tin { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: none; } }
+.toast.ok { border-left-color: var(--color-emerald); }
+.toast.warn { border-left-color: var(--color-accent); }
+.toast.bad { border-left-color: var(--color-risk); }
+.toast strong { display: block; font-size: var(--text-sm); color: var(--color-ink); margin-bottom: 2px; }
+.toast span { font-size: var(--text-sm); color: var(--color-ink-2); }
+
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-thumb { background: var(--color-paper-4); border-radius: 8px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .page.active, .step.on { animation: none; }
+  .ob-track { transition: none; }
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ===== Top bar ===== -->
+  <header class="appbar">
+    <div class="appbar__glyph" aria-hidden="true">NL</div>
+    <div>
+      <div class="appbar__title">投资日记</div>
+      <div class="appbar__sub">NIGHT LEDGER · V1.0</div>
+    </div>
+    <div class="appbar__date" id="hd-date">—</div>
+  </header>
+
+  <!-- ===== Pages ===== -->
+  <main class="pages" id="pages">
+
+    <!-- ───────── Tab 1 · 首页 ───────── -->
+    <section class="page active" id="view-home" aria-label="首页">
+      <div>
+        <h1 id="home-greet" style="font-size:var(--text-2xl)">你好 👋</h1>
+        <div class="muted" id="home-date-label" style="margin-top:2px">—</div>
+      </div>
+      <span class="pill" id="home-status" aria-live="polite">今天还没记录</span>
+
+      <div class="card card--hero">
+        <span class="card__kicker">每日复盘 · 3 分钟</span>
+        <h2 class="hero-q">今天有什么想记下来的？</h2>
+        <button type="button" class="btn btn--accent btn--lg btn--block" data-act="new-entry">✍ 开始今日复盘</button>
+        <p class="hero-hint"><b>没有持仓也能写。</b>一句话、一个心情都算数，标签和价格以后都能补。</p>
+      </div>
+
+      <div class="card" id="home-stats-card" hidden>
+        <div class="card__kicker">我的盘面 · 仅本机计算</div>
+        <div class="mini-stats">
+          <div class="ms"><span class="lab">总市值</span><span class="val tnum" data-stat="value">¥0.00</span></div>
+          <div class="ms"><span class="lab">总盈亏</span><span class="val tnum" data-stat="profit">¥0.00</span></div>
+          <div class="ms"><span class="lab">收益率</span><span class="val tnum" data-stat="pct">0.00%</span></div>
+        </div>
+        <p class="stats-note" id="home-unpriced" hidden></p>
+        <button type="button" class="btn btn--block" onclick="switchTab('holdings')">查看我的持仓 →</button>
+      </div>
+
+      <div class="card card--recap">
+        <div class="recap-head">
+          <span class="card__kicker">📖 回看入口</span>
+        </div>
+        <div id="home-recent"></div>
+        <button type="button" class="btn btn--emerald btn--block" onclick="switchTab('history')">进入历史日记，翻看以前的自己 →</button>
+      </div>
+
+      <details class="guide">
+        <summary>不知道写什么？先从这四行开始</summary>
+        <ol>
+          <li>今天市场／我的持仓表现怎么样？一句话就行。</li>
+          <li>我做了什么操作（买/卖/没动）？当时的依据是什么？</li>
+          <li>心情如何：满意、侥幸、恐惧、冲动，还是观望？别骗自己。</li>
+          <li>后面打算盯什么？什么信号出现就行动？</li>
+        </ol>
+      </details>
+    </section>
+
+    <!-- ───────── Tab 2 · 我的持仓 ───────── -->
+    <section class="page" id="view-holdings" aria-label="我的持仓">
+      <div class="page-head">
+        <div>
+          <h1>我的持仓</h1>
+          <div class="sub" id="hold-count">0 个品种 · <span class="snap-time">—</span></div>
+        </div>
+        <button type="button" class="btn btn--sm" data-act="refresh-all">🔄 刷新价格</button>
+      </div>
+
+      <div class="card" id="hold-stats-card" hidden>
+        <div class="mini-stats">
+          <div class="ms"><span class="lab">总投入成本</span><span class="val tnum" data-stat="cost">¥0.00</span></div>
+          <div class="ms"><span class="lab">当前总市值</span><span class="val tnum" data-stat="value">¥0.00</span></div>
+          <div class="ms"><span class="lab">浮动盈亏</span><span class="val tnum" data-stat="profit">¥0.00</span></div>
+        </div>
+        <p class="stats-note" id="hold-unpriced" hidden></p>
+      </div>
+
+      <div class="card">
+        <div class="page-head" style="gap:8px">
+          <span class="section-label">➕ 添加一个持仓</span>
+          <button type="button" class="btn btn--sm" id="btn-add-toggle">展开表单</button>
+        </div>
+        <form id="add-holding-form" hidden onsubmit="event.preventDefault();submitHolding();" style="display:flex;flex-direction:column;gap:12px">
+          <div class="field" id="fd-name">
+            <label for="in-name">资产名称 <span style="color:var(--color-risk)">*</span></label>
+            <input id="in-name" class="input" placeholder="如：贵州茅台、沪深300ETF、黄金" autocomplete="off" />
+            <span class="helper">在券商 / 基金 App 顶部搜索框输入的中文名。支持自动现价：贵州茅台（茅台）、沪深300ETF、中证500ETF、创业板ETF、黄金ETF（518880）、纳指ETF、标普500ETF、腾讯、阿里巴巴（阿里）。金条、积存金等按「克」买的黄金，点「✍ 输入」填银行 App 里看到的每克价格就行。</span>
+            <span class="f-err" id="err-name"></span>
+          </div>
+          <div class="form-grid2">
+            <div class="field" id="fd-qty">
+              <label for="in-qty">持有数量 <span style="color:var(--color-risk)">*</span></label>
+              <input id="in-qty" class="input tnum" type="number" inputmode="decimal" min="0" step="any" placeholder="100" />
+              <span class="helper">单位：股 / 份。股票填股数，ETF 和基金填份额，看 App「持仓」页。</span>
+              <span class="f-err" id="err-qty"></span>
+            </div>
+            <div class="field" id="fd-cost">
+              <label for="in-cost">成本价 <span style="color:var(--color-risk)">*</span></label>
+              <input id="in-cost" class="input tnum" type="number" inputmode="decimal" min="0" step="any" placeholder="1800.00" />
+              <span class="helper">单位：元/股，填买入成交均价。含手续费更好，不含也行。</span>
+              <span class="f-err" id="err-cost"></span>
+            </div>
+          </div>
+          <div class="field">
+            <label for="in-date">买入日期 <span class="badge-opt">选填</span></label>
+            <input id="in-date" class="input" type="date" />
+            <span class="helper">记不清就先空着，不影响写复盘。</span>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button type="submit" class="btn btn--accent" style="flex:1">保存持仓</button>
+            <button type="button" class="btn btn--ghost" id="btn-add-cancel">取消</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="hlist" id="holdings-body"></div>
+
+      <div class="card empty" id="hold-empty" hidden>
+        <span class="glyph">📭</span>
+        <span class="t">还没有持仓</span>
+        <span class="s">没关系，没有持仓也能写日记。等你买了第一个品种，再来这里记一笔。</span>
+        <button type="button" class="btn btn--accent" id="empty-add-btn" style="margin-top:6px">➕ 添加第一个持仓</button>
+        <button type="button" class="btn btn--ghost" onclick="switchTab('home')">先去首页写一篇日记 →</button>
+      </div>
+    </section>
+
+    <!-- ───────── Tab 3 · 历史日记 ───────── -->
+    <section class="page" id="view-history" aria-label="历史日记">
+      <div class="page-head">
+        <div>
+          <h1>历史日记</h1>
+          <div class="sub" id="line-count">0 条记录</div>
+        </div>
+        <button type="button" class="btn btn--sm btn--accent" data-act="new-entry">✍ 写一篇</button>
+      </div>
+
+      <div class="card">
+        <div class="section-label">🔍 查找记录</div>
+        <div class="field">
+          <label for="f-q">关键词</label>
+          <input id="f-q" class="input" type="search" placeholder="搜正文里的任意一句话，或资产名称" />
+        </div>
+        <div class="form-grid2">
+          <div class="field">
+            <label for="f-asset">关联资产</label>
+            <select class="input" id="f-asset"><option value="">全部资产</option></select>
+          </div>
+          <div class="field">
+            <label for="f-mood">心情</label>
+            <select class="input" id="f-mood">
+              <option value="">全部心情</option>
+              <option>满意</option><option>侥幸</option><option>恐惧</option><option>冲动</option><option>观望</option>
+            </select>
+          </div>
+        </div>
+        <div id="f-day-wrap" hidden style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <span class="pill pill--day">📅 只看 <b id="f-day-label" class="tnum">—</b></span>
+          <button type="button" class="btn btn--sm btn--ghost" id="f-day-clear">清除日期筛选</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="cal-headrow">
+          <span class="cal-title" id="cal-title">—</span>
+          <span class="cal-count" id="cal-count">—</span>
+          <div class="cal-pager" role="group" aria-label="翻月">
+            <button type="button" aria-label="上个月" onclick="shiftCalendar(-1)">‹</button>
+            <button type="button" aria-label="下个月" onclick="shiftCalendar(1)">›</button>
+          </div>
+        </div>
+        <div class="cal-grid" id="cal-dows" aria-hidden="true"></div>
+        <div class="cal-grid" id="cal-grid" role="grid" aria-label="日历，有记录的日期带绿色圆点"></div>
+        <div class="cal-foot">
+          <span><b class="e"></b>已复盘</span>
+          <span><b class="t"></b>今天</span>
+          <span style="margin-left:auto">点日期可查找那天的记录</span>
+        </div>
+      </div>
+
+      <div class="jlist" id="journal-list"></div>
+    </section>
+
+    <!-- ───────── Tab 4 · 设置 ───────── -->
+    <section class="page" id="view-settings" aria-label="设置">
+      <div class="page-head"><div><h1>设置</h1><div class="sub">所有数据只保存在这台设备的浏览器里</div></div></div>
+
+      <div class="group-title">数据管理</div>
+      <div class="list-card">
+        <button type="button" class="row-btn" id="btn-export-txt">
+          <span class="ic">📋</span><span>导出全部日记（纯文本）<small>复制到剪贴板，或自动存成 .txt</small></span><span class="arr">›</span>
+        </button>
+        <button type="button" class="row-btn" id="btn-export-csv">
+          <span class="ic">📊</span><span>导出持仓数据（CSV）<small>可用 Excel / WPS 打开</small></span><span class="arr">›</span>
+        </button>
+        <button type="button" class="row-btn" id="btn-backup">
+          <span class="ic">💾</span><span>完整备份（JSON）<small>日记 + 持仓打包成一个文件</small></span><span class="arr">›</span>
+        </button>
+        <button type="button" class="row-btn" id="btn-import">
+          <span class="ic">📥</span><span>导入恢复（JSON）<small>从之前的备份还原，会覆盖当前数据</small></span><span class="arr">›</span>
+          <input type="file" id="import-file" accept="application/json,.json" hidden />
+        </button>
+      </div>
+
+      <div class="group-title">行情</div>
+      <div class="list-card">
+        <button type="button" class="row-btn" data-act="refresh-all">
+          <span class="ic">🔄</span><span>刷新全部现价<small>最近更新：<span class="snap-time">—</span></small></span><span class="arr">›</span>
+        </button>
+      </div>
+
+      <div class="group-title">帮助</div>
+      <div class="list-card">
+        <button type="button" class="row-btn" id="btn-replay-guide">
+          <span class="ic">🧭</span><span>重新看一遍新手引导<small>30 秒，回顾怎么写下第一条</small></span><span class="arr">›</span>
+        </button>
+      </div>
+
+      <div class="group-title">关于</div>
+      <div class="card" style="gap:6px">
+        <div class="muted" style="font-size:var(--text-xs);line-height:1.8">
+          Night Ledger 投资日记 · 数据结构 V1.0 · 本地存储不上云。<br/>
+          现价来自新浪财经 / 腾讯财经公共接口，仅供参考，实际以券商为准。
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ===== Bottom tab bar（全页唯一一份） ===== -->
+  <nav class="tabbar" id="tabbar" aria-label="底部导航">
+    <button type="button" class="tab is-active" data-tab="home" aria-current="page">
+      <svg viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/><path d="M9.5 21v-6h5v6"/></svg>
+      <span>首页</span>
+    </button>
+    <button type="button" class="tab" data-tab="holdings">
+      <svg viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M3 12.5h18"/></svg>
+      <span>我的持仓</span>
+    </button>
+    <button type="button" class="tab" data-tab="history">
+      <svg viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9h18M8 2.8v3.4M16 2.8v3.4"/><path d="M7.5 13.5h2M11 13.5h2M14.5 13.5h2M7.5 17h2M11 17h2M14.5 17h2"/></svg>
+      <span>历史日记</span>
+    </button>
+    <button type="button" class="tab" data-tab="settings">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.6 1.6 0 0 0 .32 1.76l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.6 1.6 0 0 0-1.77-.32 1.6 1.6 0 0 0-.95 1.47V21a2 2 0 1 1-4 0v-.08A1.6 1.6 0 0 0 7 19.6a1.6 1.6 0 0 0-1.77.32l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.6 1.6 0 0 0 4.6 15a1.6 1.6 0 0 0-1.47-.95H3a2 2 0 1 1 0-4h.08A1.6 1.6 0 0 0 4.4 9a1.6 1.6 0 0 0-.32-1.76L4 7.2a2 2 0 1 1 2.83-2.83l.06.06a1.6 1.6 0 0 0 1.77.32H9a1.6 1.6 0 0 0 .95-1.47V3a2 2 0 1 1 4 0v.08a1.6 1.6 0 0 0 .95 1.47 1.6 1.6 0 0 0 1.77-.32l.06-.06A2 2 0 1 1 19.6 7.2l-.06.06A1.6 1.6 0 0 0 19.2 9c.14.6.67 1.05 1.28 1.05H21a2 2 0 1 1 0 4h-.08a1.6 1.6 0 0 0-1.52.95z"/></svg>
+      <span>设置</span>
+    </button>
+  </nav>
+</div>
+
+<!-- ===== Journal flow (3 steps) ===== -->
+<div id="journal-modal" class="overlay" hidden>
+  <div class="sheet flow" role="dialog" aria-modal="true" aria-label="写复盘">
+    <div class="flow__bar">
+      <button type="button" class="icon-btn" id="jm-close" aria-label="关闭">✕</button>
+      <div>
+        <div class="t">写复盘</div>
+        <div class="s">写自己真实的想法就好</div>
+      </div>
+      <span class="dots" aria-hidden="true"><i class="on"></i><i></i><i></i></span>
+    </div>
+
+    <div class="flow__body">
+      <!-- Step 1 · 正文前置 -->
+      <section class="step on" id="jstep-1">
+        <div class="field">
+          <label for="j-date">日期</label>
+          <input id="j-date" class="input" type="date" />
+        </div>
+        <h2 class="step-q">今天有什么想记下来的？</h2>
+        <div class="field">
+          <label for="j-content">今天的记录 <span style="color:var(--color-risk)">*</span></label>
+          <textarea id="j-content" class="input" rows="8"
+            placeholder="例：今天大盘涨了约 1%，我什么都没操作，继续拿着手里的沪深300ETF。主要原因是还没到我计划加仓的价位，不想追高……"></textarea>
+          <span class="helper">一句也行，不用写给别人看，写给一年后的自己。</span>
+        </div>
+        <details class="guide">
+          <summary>卡住了？照着这四问写</summary>
+          <ol>
+            <li>今天市场／持仓表现怎么样？</li>
+            <li>我做了什么操作？依据是什么？</li>
+            <li>心情：满意 / 侥幸 / 恐惧 / 冲动 / 观望？</li>
+            <li>后面盯什么？什么信号触发动作？</li>
+          </ol>
+        </details>
+      </section>
+
+      <!-- Step 2 · 全部选填 -->
+      <section class="step" id="jstep-2">
+        <div class="opt-note">ℹ️ 下面这些<b style="color:var(--color-blue)">&nbsp;全部选填&nbsp;</b>。不确定也可以先记录，以后回看时再补。</div>
+
+        <div class="field">
+          <label>今天的心情 <span class="badge-opt">选填 · 单选</span></label>
+          <div class="chiprow" id="j-moods" role="group" aria-label="心情">
+            <button type="button" class="chip" data-v="满意" data-variant="emerald" aria-pressed="false">😊 满意</button>
+            <button type="button" class="chip" data-v="侥幸" aria-pressed="false">😅 侥幸</button>
+            <button type="button" class="chip" data-v="恐惧" data-variant="risk" aria-pressed="false">😨 恐惧</button>
+            <button type="button" class="chip" data-v="冲动" data-variant="risk" aria-pressed="false">🤬 冲动</button>
+            <button type="button" class="chip" data-v="观望" data-variant="blue" aria-pressed="false">🤔 观望</button>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>操作原因 <span class="badge-opt">选填 · 可多选</span></label>
+          <div class="chiprow" id="j-reasons" role="group" aria-label="操作原因">
+            <button type="button" class="chip" data-v="技术面" data-variant="blue" aria-pressed="false">📈 技术面</button>
+            <button type="button" class="chip" data-v="基本面" data-variant="blue" aria-pressed="false">📊 基本面</button>
+            <button type="button" class="chip" data-v="消息面" data-variant="blue" aria-pressed="false">📰 消息面</button>
+            <button type="button" class="chip" data-v="跟单" data-variant="blue" aria-pressed="false">👥 跟单</button>
+            <button type="button" class="chip" data-v="其他" data-variant="blue" aria-pressed="false">🗂 其他</button>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="j-asset">关联持仓 <span class="badge-opt">选填</span></label>
+          <select id="j-asset" class="input"></select>
+          <span class="helper">没有持仓、或不想关联，选「不关联」就好。</span>
+        </div>
+
+        <div class="preview-box">
+          <b>📸 保存时会自动附带（不需要自己填）</b>
+          <div id="sp-total">总盈亏：计算中…</div>
+          <div id="sp-asset">未关联资产</div>
+        </div>
+      </section>
+
+      <!-- Step 3 · 成功 + 回看 -->
+      <section class="step" id="jstep-3">
+        <div class="done-wrap">
+          <div class="done-glyph" aria-hidden="true">✅</div>
+          <h2>记好啦！</h2>
+          <p class="s">这条已经存进「历史日记」。以后想它了，随时去那里回看——回看比打卡更重要。</p>
+        </div>
+        <div id="js-card" class="entry"></div>
+      </section>
+    </div>
+
+    <div class="flow__foot" id="jm-foot-1">
+      <button type="button" class="btn btn--accent btn--lg btn--block" id="jm-save-quick" disabled>保存这一条</button>
+      <button type="button" class="btn btn--ghost btn--block" id="jm-next">补充心情和标签（选填，可跳过）→</button>
+    </div>
+    <div class="flow__foot flow__foot--row2" id="jm-foot-2" hidden>
+      <button type="button" class="btn" id="jm-back">← 上一步</button>
+      <button type="button" class="btn btn--accent" id="jm-save">💾 保存复盘</button>
+    </div>
+    <div class="flow__foot" id="jm-foot-3" hidden>
+      <button type="button" class="btn btn--emerald btn--lg btn--block" id="js-goto-history">📖 去历史日记回看</button>
+      <button type="button" class="btn btn--ghost btn--block" id="js-again">再写一条</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Manual price modal ===== -->
+<div id="price-modal" class="overlay" hidden>
+  <div class="sheet cfirm" role="dialog" aria-modal="true" aria-labelledby="pm-title">
+    <h2 id="pm-title">输入最新现价</h2>
+    <div class="field" style="margin-top:14px">
+      <label for="pm-price">现价（元/股）</label>
+      <input id="pm-price" class="input tnum" type="number" inputmode="decimal" min="0" step="any" placeholder="如：1820.50" />
+      <span class="helper">填你在券商 App 看到的最新成交价就行。</span>
+    </div>
+    <div class="sheet-actions">
+      <button type="button" class="btn btn--ghost" id="pm-cancel">取消</button>
+      <button type="button" class="btn btn--accent" id="pm-save">保存价格</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Confirm dialog ===== -->
+<div id="confirm-modal" class="overlay danger" hidden>
+  <div class="sheet cfirm" role="alertdialog" aria-modal="true" aria-labelledby="cfm-title" aria-describedby="cfm-msg">
+    <h2 id="cfm-title">确认操作</h2>
+    <p id="cfm-msg"></p>
+    <div class="sheet-actions">
+      <button type="button" class="btn btn--ghost" id="cfm-cancel">取消</button>
+      <button type="button" class="btn btn--risk" id="cfm-ok">确定</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Onboarding ===== -->
+<div id="onboarding" class="ob" hidden>
+  <div class="ob-inner">
+    <div class="ob-top">
+      <div class="appbar__glyph" aria-hidden="true">NL</div>
+      <button type="button" class="btn btn--ghost btn--sm" id="ob-skip">先随便看看</button>
+    </div>
+    <div class="ob-viewport">
+      <div class="ob-track" id="ob-track">
+        <section class="ob-slide">
+          <span class="emoji" aria-hidden="true">📓</span>
+          <h2>欢迎来到你的投资日记本</h2>
+          <p>每天花 3 分钟，记下「当时我持有什么、当时我怎么想」。</p>
+          <div class="kbd"><span>🔒 所有内容<b>只存在你自己的设备里</b>，不上传、不同步。</span></div>
+        </section>
+        <section class="ob-slide">
+          <span class="emoji" aria-hidden="true">🌱</span>
+          <h2>不用先搞懂投资，也能开始</h2>
+          <p>没有持仓也能写，一句话也行。心情、标签、价格……<b style="color:var(--color-accent)">全部可以以后再补</b>。</p>
+          <div class="kbd">
+            <span>1️⃣ 先写下今天的一句话</span>
+            <span>2️⃣ 标签选填，跳过也行</span>
+            <span>3️⃣ 存好之后，随时去「历史日记」回看</span>
+          </div>
+        </section>
+        <section class="ob-slide">
+          <span class="emoji" aria-hidden="true">✍️</span>
+          <h2>现在，写第一条试试？</h2>
+          <p>不用写得多好。365 天后，你会感谢今天动笔的自己。</p>
+        </section>
+      </div>
+    </div>
+    <div class="ob-dots" id="ob-dots" aria-hidden="true"><i class="on"></i><i></i><i></i></div>
+    <div class="ob-foot">
+      <button type="button" class="btn" id="ob-prev" style="visibility:hidden">上一步</button>
+      <button type="button" class="btn btn--accent" id="ob-next">下一步</button>
+      <button type="button" class="btn btn--accent btn--lg single" id="ob-start" hidden>✍ 开始写第一条</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-wrap" id="toast-wrap" aria-live="polite" aria-atomic="true"></div>
+
+<script>
+/* ============================================================
+ * Investment Diary · Mobile App rebuild (V1.1 layout)
+ * Data schema unchanged V1.0:
+ *   HOLD id/name/quantity/cost_price/buy_date/current_price/last_update/version
+ *   JRNL id/date/content/asset_link/mood/reason_tags/snapshot_total/snapshot_asset/version
+ * Storage keys: id_holdings_v1 / id_journals_v1 / id_onboarded_v1
+ * ============================================================ */
+const VERSION = 'V1.0';
+const K = { H: 'id_holdings_v1', J: 'id_journals_v1', O: 'id_onboarded_v1' };
+const MOJI = { '满意':'😊','侥幸':'😅','恐惧':'😨','冲动':'🤬','观望':'🤔' };
+
+let H = [], J = [];
+let cal = new Date();
+let calDay = '';          // 历史页「按天筛选」
+let confirmCb = null;
+let priceCb = null;
+const priceCache = {};
+
+/* ---------- utils ---------- */
+const $ = (id) => document.getElementById(id);
+const $$ = (sel, root) => Array.from((root||document).querySelectorAll(sel));
+const todayStr = () => {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+};
+function escapeHtml(s=''){ return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+function fmtMoney(n){
+  if (n===null||n===undefined||isNaN(n)) return '--';
+  const abs = Math.abs(Number(n)).toLocaleString('zh-CN',{minimumFractionDigits:2,maximumFractionDigits:2});
+  return n>=0 ? '¥'+abs : '-¥'+abs;
+}
+function fmtNum(n,d=2){ return n===null||n===undefined||isNaN(n) ? '--' : Number(n).toFixed(d); }
+function fmtPct(n){
+  if (n===null||n===undefined||isNaN(n)) return '--';
+  return (n>=0?'+':'') + Number(n).toFixed(2) + '%';
+}
+function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+
+/* ---------- toast ---------- */
+function showToast(msg, type='info', title){
+  const d = document.createElement('div');
+  d.className = 'toast ' + ({ ok:'ok', success:'ok', warn:'warn', warning:'warn', error:'bad', bad:'bad' }[type] || '');
+  d.innerHTML = (title? `<strong>${escapeHtml(title)}</strong>`:'') + `<span>${escapeHtml(msg)}</span>`;
+  $('toast-wrap').appendChild(d);
+  setTimeout(()=>{ d.style.transition='opacity .22s'; d.style.opacity='0'; setTimeout(()=>d.remove(),260); }, 3000);
+}
+
+/* ---------- confirm dialog ---------- */
+function openConfirm(title, msg, onOk){
+  $('cfm-title').textContent = title;
+  $('cfm-msg').textContent = msg;
+  confirmCb = typeof onOk === 'function' ? onOk : null;
+  $('cfm-ok').onclick = () => { const cb = confirmCb; closeConfirm(); if(cb){ try{cb();}catch(e){console.error(e);showToast('操作失败：'+(e.message||String(e)),'error');} } };
+  $('confirm-modal').hidden = false;
+  setTimeout(()=>$('cfm-cancel').focus(), 10);
+}
+function closeConfirm(){ $('confirm-modal').hidden = true; confirmCb = null; }
+$('cfm-cancel').addEventListener('click', closeConfirm);
+$('confirm-modal').addEventListener('click', e => { if (e.target === $('confirm-modal')) closeConfirm(); });
+
+/* ---------- Esc: deepest layer first ---------- */
+document.addEventListener('keydown', (e)=>{
+  if (e.key !== 'Escape') return;
+  if (!$('price-modal').hidden)   { closePriceModal(); return; }
+  if (!$('confirm-modal').hidden) { closeConfirm(); return; }
+  if (!$('journal-modal').hidden) { closeJournalModal(); return; }
+  const f = $('add-holding-form'); if (f && !f.hidden) closeAddInline();
+});
+
+/* ---------- storage ---------- */
+function loadAll(){
+  try { H = JSON.parse(localStorage.getItem(K.H) || '[]'); } catch { H = []; }
+  try { J = JSON.parse(localStorage.getItem(K.J) || '[]'); } catch { J = []; }
+  if (!Array.isArray(H)) H = [];
+  if (!Array.isArray(J)) J = [];
+  H.forEach(h => h.version = h.version || VERSION);
+  J.forEach(j => j.version = j.version || VERSION);
+}
+function saveH(){ localStorage.setItem(K.H, JSON.stringify(H)); }
+function saveJ(){ localStorage.setItem(K.J, JSON.stringify(J)); }
+
+/* ---------- profit math ---------- */
+function profitOf(h){
+  const raw = h.current_price;
+  const cp = (raw !== '' && raw !== null && raw !== undefined && !isNaN(Number(raw))) ? Number(raw) : null;
+  const cost = h.quantity * h.cost_price;
+  if (cp === null) return { cost, value: null, profit: null, pct: null, empty: true };
+  const value = h.quantity * cp;
+  const profit = value - cost;
+  return { cost, value, profit, pct: cost>0 ? (profit/cost)*100 : 0, empty: false };
+}
+function portfolio(){
+  let cost = 0, value = 0, unpriced = 0;
+  H.forEach(h=>{
+    const p = profitOf(h);
+    cost += p.cost;
+    if (p.empty){ value += p.cost; unpriced++; }
+    else value += p.value;
+  });
+  const profit = value - cost;
+  const pct = cost>0 ? (profit/cost)*100 : 0;
+  return { cost, value, profit, pct, unpriced };
+}
+
+/* ---------- tab routing (single #tabbar, data-tab, hash) ---------- */
+const TABS = ['home','holdings','history','settings'];
+function switchTab(name){
+  if (!TABS.includes(name)) name = 'home';
+  $$('.page').forEach(p => p.classList.toggle('active', p.id === 'view-' + name));
+  $$('#tabbar .tab').forEach(t => {
+    const on = t.dataset.tab === name;
+    t.classList.toggle('is-active', on);
+    if (on) t.setAttribute('aria-current','page'); else t.removeAttribute('aria-current');
+  });
+  $('pages').scrollTop = 0;
+  if (location.hash !== '#/' + name) history.replaceState(null, '', '#/' + name);
+}
+$$('#tabbar .tab').forEach(t => t.addEventListener('click', () => switchTab(t.dataset.tab)));
+window.addEventListener('hashchange', () => {
+  const m = (location.hash||'').match(/^#\/(home|holdings|history|settings)$/);
+  if (m) switchTab(m[1]);
+});
+
+/* ---------- summary (fills every [data-stat] occurrence) ---------- */
+function renderSummary(){
+  const { cost, value, profit, pct, unpriced } = portfolio();
+  const setStat = (k, v) => $$('[data-stat="'+k+'"]').forEach(el => {
+    el.textContent = v;
+    el.classList.toggle('pos', (k==='profit'||k==='pct') && (k==='profit' ? profit>=0 : pct>=0));
+    el.classList.toggle('neg', (k==='profit'||k==='pct') && (k==='profit' ? profit<0 : pct<0));
+  });
+  setStat('cost',   '¥' + cost.toLocaleString('zh-CN',{minimumFractionDigits:2,maximumFractionDigits:2}));
+  setStat('value',  '¥' + value.toLocaleString('zh-CN',{minimumFractionDigits:2,maximumFractionDigits:2}));
+  setStat('profit', fmtMoney(profit));
+  setStat('pct',    fmtPct(pct));
+  $('hold-stats-card').hidden = H.length === 0;
+  $('home-stats-card').hidden = H.length === 0;
+  const note = unpriced > 0
+    ? unpriced + ' 个品种还没有现价，已按成本计入、暂不算盈亏（去「我的持仓」刷新或手动输入现价）'
+    : '';
+  ['home-unpriced','hold-unpriced'].forEach(id=>{
+    const el = $(id);
+    el.textContent = note;
+    el.hidden = !(unpriced > 0);
+  });
+  const now = new Date().toLocaleString('zh-CN', { hour12: false });
+  $$('.snap-time').forEach(el => el.textContent = now);
+}
+
+/* ---------- holdings ---------- */
+function populateSelects(){
+  const fa = $('f-asset'), curF = fa.value;
+  fa.innerHTML = '<option value="">全部资产</option>' + H.map(h=>`<option value="${h.id}">${escapeHtml(h.name)}</option>`).join('');
+  fa.value = curF;
+  const ja = $('j-asset'), curJ = ja.value;
+  ja.innerHTML = H.length
+    ? '<option value="">不关联（没有持仓也可以写）</option>' + H.map(h=>`<option value="${h.id}">${escapeHtml(h.name)}</option>`).join('')
+    : '<option value="">不关联（我还没有持仓）</option>';
+  ja.value = curJ;
+}
+
+function renderHoldings(){
+  const body = $('holdings-body');
+  $('hold-empty').hidden = H.length !== 0;
+  $('hold-count').innerHTML = H.length + ' 个品种 · <span class="snap-time">—</span>';
+  if (!H.length){ body.innerHTML = ''; return; }
+  body.innerHTML = H.map(h => {
+    const p = profitOf(h);
+    const cls = p.empty ? '' : (p.profit>=0 ? 'pos' : 'neg');
+    const price = p.empty
+      ? `<span class="pv">还没有现价<small>可刷新或手动输入</small></span>`
+      : `<span class="pv">¥${fmtNum(h.current_price)}<small>${h.last_update ? new Date(h.last_update).toLocaleDateString('zh-CN') : ''} 更新</small></span>`;
+    return `
+    <article class="hcard">
+      <div class="hcard__top">
+        <div>
+          <div class="hcard__name">${escapeHtml(h.name)}</div>
+          <div class="hcard__date">${h.buy_date ? '买入 '+escapeHtml(h.buy_date) : '买入日期未填'}</div>
+        </div>
+        <button type="button" class="btn btn--sm btn--risk" data-del="${h.id}" data-name="${escapeHtml(h.name)}">删除</button>
+      </div>
+      <div class="meta-grid">
+        <div class="meta"><span class="k">持有数量（股/份）</span><span class="v">${Number(h.quantity).toLocaleString('zh-CN',{maximumFractionDigits:4})}</span></div>
+        <div class="meta"><span class="k">成本价（元）</span><span class="v">¥${fmtNum(h.cost_price)}</span></div>
+      </div>
+      <div class="price-box">
+        ${price}
+        <span class="price-box__btns">
+          <button type="button" class="btn btn--sm" data-refresh="${h.id}">🔄 刷新</button>
+          <button type="button" class="btn btn--sm" data-manual="${h.id}">✍ 输入</button>
+        </span>
+      </div>
+      <div class="pl-row">
+        <span class="lab">浮动盈亏</span>
+        <span class="vals">
+          <span class="amt tnum ${cls}">${p.empty ? '--' : ((p.profit>=0?'+':'')+'¥'+p.profit.toLocaleString('zh-CN',{minimumFractionDigits:2,maximumFractionDigits:2}))}</span>
+          <span class="pct tnum ${cls}">${p.empty ? '' : fmtPct(p.pct)}</span>
+        </span>
+      </div>
+    </article>`;
+  }).join('');
+}
+
+/* delegated row actions (click + keyboard), single binding, ids never inlined into on* attributes */
+document.addEventListener('click', (e)=>{
+  const r = e.target.closest('button[data-refresh]'); if (r){ refreshOne(r.getAttribute('data-refresh')); return; }
+  const m = e.target.closest('button[data-manual]');  if (m){ openPriceModal(m.getAttribute('data-manual')); return; }
+  const d = e.target.closest('button[data-del]');     if (d){ deleteHolding(d.getAttribute('data-del'), d.getAttribute('data-name')); return; }
+  const dj = e.target.closest('button[data-delj]');  if (dj){ deleteJournal(dj.getAttribute('data-delj')); return; }
+});
+document.addEventListener('keydown', (e)=>{
+  if (e.key!=='Enter' && e.key!==' ') return;
+  const dj = e.target.closest && e.target.closest('button[data-delj]');
+  if (dj){ e.preventDefault(); deleteJournal(dj.getAttribute('data-delj')); }
+});
+
+/* add-holding form */
+function openAddInline(){ const f=$('add-holding-form'); f.hidden=false; $('btn-add-toggle').textContent='收起'; setTimeout(()=>$('in-name').focus(),30); }
+function closeAddInline(){
+  const f=$('add-holding-form'); f.hidden=true; $('btn-add-toggle').textContent='展开表单';
+  ['in-name','in-qty','in-cost','in-date'].forEach(id=>$(id).value='');
+  ['err-name','err-qty','err-cost'].forEach(id=>$(id).textContent='');
+  ['fd-name','fd-qty','fd-cost'].forEach(id=>$(id).classList.remove('has-error'));
+}
+$('btn-add-toggle').addEventListener('click', ()=>{ $('add-holding-form').hidden ? openAddInline() : closeAddInline(); });
+$('empty-add-btn').addEventListener('click', ()=>{ switchTab('holdings'); openAddInline(); });
+$('btn-add-cancel').addEventListener('click', closeAddInline);
+['in-name','in-qty','in-cost'].forEach(id => $(id).addEventListener('input', () => {
+  $('err-'+id.slice(3)).textContent='';
+  $('fd-'+id.slice(3)).classList.remove('has-error');
+}));
+function fieldError(key, msg){ $('err-'+key).textContent = msg; $('fd-'+key).classList.add('has-error'); }
+
+function submitHolding(){
+  const name = $('in-name').value.trim();
+  const qty = parseFloat($('in-qty').value);
+  const cost = parseFloat($('in-cost').value);
+  const buyDate = $('in-date').value;
+  let bad = false;
+  if (!name){ fieldError('name','请填写资产名称，例如「贵州茅台」'); bad=true; }
+  if (isNaN(qty) || qty <= 0){ fieldError('qty','请填写大于 0 的数量，例如 100'); bad=true; }
+  if (isNaN(cost) || cost <= 0){ fieldError('cost','请填写大于 0 的成本价，例如 1800'); bad=true; }
+  if (bad){ showToast('有几项需要先补一下','warning','再检查一下表单'); return; }
+  if (H.some(h => h.name === name)){ fieldError('name','这个资产已经在列表里了，不用重复添加'); showToast('请勿重复添加相同资产','warning','已存在'); return; }
+  H.push({ id: uid(), name, quantity: qty, cost_price: cost, buy_date: buyDate || '', current_price: null, last_update: null, version: VERSION });
+  saveH(); closeAddInline(); renderAll();
+  showToast('「'+name+'」已保存，以后写复盘就能关联它了','success','持仓添加成功');
+}
+
+function deleteHolding(id, name){
+  openConfirm('删除持仓', '确定删除「'+name+'」吗？已经写过的日记不会受影响，随时还能回看。', ()=>{
+    const before = H.length;
+    H = H.filter(h=>h.id!==id);
+    if (H.length === before) return showToast('删除失败：未找到匹配持仓','error');
+    try { saveH(); } catch(err){ return showToast('写入失败：'+(err.message||String(err)),'error'); }
+    renderAll();
+    showToast('「'+(name||'持仓')+'」已删除','success');
+  });
+}
+
+/* ---------- manual price modal (replaces window.prompt) ---------- */
+function openPriceModal(id){
+  const h = H.find(x=>x.id===id); if (!h) return;
+  $('pm-title').textContent = '输入「'+h.name+'」的最新现价';
+  $('pm-price').value = (h.current_price === '' || h.current_price == null ? (h.cost_price ?? '') : h.current_price) + '';
+  priceCb = (val) => {
+    const p = parseFloat(val);
+    if (isNaN(p) || p < 0) return showToast('请输入有效的价格（≥0）','error');
+    h.current_price = p; h.last_update = Date.now(); saveH(); renderAll();
+    showToast('「'+h.name+'」现价已更新为 ¥'+fmtNum(p),'success');
+  };
+  $('price-modal').hidden = false;
+  setTimeout(()=>{ $('pm-price').focus(); $('pm-price').select(); }, 20);
+}
+function closePriceModal(){ $('price-modal').hidden = true; priceCb = null; }
+$('pm-cancel').addEventListener('click', closePriceModal);
+$('price-modal').addEventListener('click', e => { if (e.target === $('price-modal')) closePriceModal(); });
+$('pm-save').addEventListener('click', ()=>{ const cb = priceCb; const v = $('pm-price').value; closePriceModal(); if (cb) cb(v); });
+$('pm-price').addEventListener('keydown', e => { if (e.key==='Enter'){ e.preventDefault(); $('pm-save').click(); } });
+
+/* ---------- price refresh (sina / tencent, alias table, 3s race + degrade) ---------- */
+function race(p, ms, label){
+  return Promise.race([p, new Promise((_,r)=>setTimeout(()=>r(new Error(label+' 超时')), ms))]);
+}
+async function queryByName(name){
+  const alias = {
+    '贵州茅台':'sh600519','茅台':'sh600519',
+    '沪深300etf':'sh510300','沪深300':'sh510300',
+    '中证500etf':'sh510500','创业板etf':'sz159915',
+    '黄金etf':'sh518880','黄金etf华安':'sh518880','华安黄金etf':'sh518880',
+    '黄金etf易方达':'sz159934','易方达黄金etf':'sz159934',
+    '纳指etf':'sh513100','标普500etf':'sh513500',
+    '腾讯':'hk00700','阿里巴巴':'hk09988','阿里':'hk09988'
+  };
+  const k = name.toLowerCase().replace(/\s+/g,'');
+  const code = alias[k] || alias[name];
+  if (!code) return null;
+  if (code.startsWith('hf_')) {
+    try {
+      const t = await race(fetch('https://qt.gtimg.cn/q=' + code).then(r=>r.text()), 3000, '黄金API');
+      const m = t.match(/="([^"]+)"/); if (!m) throw 0;
+      const f = m[1].trim();
+      // hf_ 期货/现货行情是逗号分隔（[0]=最新价）；股票是 ~ 分隔（[3]=最新价）
+      const p = f.indexOf('~') > -1 ? parseFloat(f.split('~')[3]) : parseFloat(f.split(',')[0]);
+      if (!isFinite(p) || p<=0) throw 0; return p;
+    } catch(e) { return false; }
+  }
+  try {
+    const t = await race(fetch('https://hq.sinajs.cn/list=' + code, { headers:{ Referer:'https://finance.sina.com.cn/' } }).then(r=>r.text()), 3000, '新浪行情');
+    const m = t.match(/"([^"]+)"/); if (!m) throw 0;
+    const parts = m[1].split(',');
+    const p = parseFloat(code.startsWith('hk') ? parts[6] : parts[3]);
+    if (!isFinite(p) || p<=0) throw 0; return p;
+  } catch(e) { /* 新浪不可达时继续尝试腾讯兜底 */ }
+  try {
+    const t2 = await race(fetch('https://qt.gtimg.cn/q=' + code).then(r=>r.text()), 3000, '腾讯行情');
+    const m2 = t2.match(/="([^"]+)"/); if (!m2) throw 0;
+    const p2 = parseFloat(m2[1].split('~')[3]);
+    if (!isFinite(p2) || p2<=0) throw 0; return p2;
+  } catch(e2) { return false; }
+}
+async function refreshOne(id){
+  const h = H.find(x=>x.id===id); if (!h) return;
+  const res = await queryByName(h.name);
+  if (res === null) { openPriceModal(id); return; }
+  if (res === false || isNaN(res) || res <= 0) {
+    const c = priceCache[id];
+    if (c && !isNaN(c)) { h.current_price = c; saveH(); renderAll(); return showToast('数据异常，已使用上次成功价格','warning','「'+h.name+'」'); }
+    return showToast('自动获取失败，可以点「✍ 输入」手动填现价','warning','「'+h.name+'」');
+  }
+  priceCache[id] = res;
+  h.current_price = res; h.last_update = Date.now(); saveH(); renderAll();
+  showToast('「'+h.name+'」最新价 ¥'+fmtNum(res),'success');
+}
+async function refreshAll(){
+  const btns = $$('[data-act="refresh-all"]');
+  btns.forEach(b => { b.disabled = true; if (b.classList.contains('btn--sm')) b.textContent = '刷新中…'; });
+  const failed = [], warn = [];
+  for (const h of H){
+    const r = await queryByName(h.name);
+    if (r === null) continue;
+    if (r === false || isNaN(r) || r <= 0){
+      const c = priceCache[h.id];
+      if (c && !isNaN(c)) { h.current_price = c; h.last_update = Date.now(); warn.push(h.name); continue; }
+      failed.push(h.name); continue;
+    }
+    priceCache[h.id] = r;
+    h.current_price = r; h.last_update = Date.now();
+  }
+  saveH(); renderAll();
+  btns.forEach(b => { b.disabled = false; if (b.classList.contains('btn--sm')) b.textContent = '🔄 刷新价格'; });
+  if (!failed.length && !warn.length) showToast(H.length ? '价格刷新完成' : '还没有持仓，先添加一个吧', H.length ? 'success' : 'info');
+  else if (failed.length) showToast('获取失败：'+failed.join('、')+'（可点「✍ 输入」手动填写）','warning','部分失败');
+  else showToast('已使用上次成功价格：'+warn.join('、'),'warning','数据异常降级');
+}
+/* delegated data-act (covers static CTAs and buttons injected later, e.g. empty states) */
+document.addEventListener('click', (e)=>{
+  const n = e.target.closest('[data-act="new-entry"]');
+  if (n){ openJournalModal(); return; }
+  const r = e.target.closest('[data-act="refresh-all"]');
+  if (r){ refreshAll(); return; }
+});
+
+/* ---------- journal flow ---------- */
+let jstep = 1;
+function showJStep(n){
+  jstep = n;
+  [1,2,3].forEach(i => $('jstep-'+i).classList.toggle('on', i===n));
+  $('jm-foot-1').hidden = n!==1;
+  $('jm-foot-2').hidden = n!==2;
+  $('jm-foot-3').hidden = n!==3;
+  $$('.flow__bar .dots i').forEach((d,i)=>d.classList.toggle('on', i===Math.min(n,3)-1));
+}
+
+function openJournalModal(dateStr){
+  $('j-date').value = dateStr || todayStr();
+  $('j-content').value = '';
+  $$('#j-moods .chip').forEach(c=>c.setAttribute('aria-pressed','false'));
+  $$('#j-reasons .chip').forEach(c=>c.setAttribute('aria-pressed','false'));
+  populateSelects();
+  updateSnapshotPreview();
+  syncQuickSave();
+  showJStep(1);
+  $('journal-modal').hidden = false;
+  setTimeout(()=>$('j-content').focus(), 60);
+}
+function closeJournalModal(){ $('journal-modal').hidden = true; }
+$('jm-close').addEventListener('click', closeJournalModal);
+
+$('j-content').addEventListener('input', syncQuickSave);
+function syncQuickSave(){ $('jm-save-quick').disabled = !$('j-content').value.trim(); }
+
+$('jm-next').addEventListener('click', ()=>{
+  if (!$('j-content').value.trim()){ showToast('先写一句今天的想法吧','warning'); $('j-content').focus(); return; }
+  updateSnapshotPreview(); showJStep(2);
+});
+$('jm-back').addEventListener('click', ()=>showJStep(1));
+$('js-again').addEventListener('click', ()=>openJournalModal());
+$('js-goto-history').addEventListener('click', ()=>{ closeJournalModal(); switchTab('history'); });
+
+function toggleMood(el){
+  $$('#j-moods .chip').forEach(c => c.setAttribute('aria-pressed', String(c === el ? c.getAttribute('aria-pressed') !== 'true' : false)));
+}
+function toggleReason(el){ el.setAttribute('aria-pressed', String(el.getAttribute('aria-pressed') !== 'true')); }
+$$('#j-moods .chip').forEach(c => c.addEventListener('click', ()=>toggleMood(c)));
+$$('#j-reasons .chip').forEach(c => c.addEventListener('click', ()=>toggleReason(c)));
+$('j-asset').addEventListener('change', updateSnapshotPreview);
+function moodVal(){ const el = document.querySelector('#j-moods .chip[aria-pressed="true"]'); return el ? el.getAttribute('data-v') : ''; }
+function reasonVals(){ return $$('#j-reasons .chip[aria-pressed="true"]').map(c=>c.getAttribute('data-v')); }
+
+function updateSnapshotPreview(){
+  const s = portfolio();
+  $('sp-total').textContent = H.length === 0
+    ? '暂无持仓，保存时这一项会记为「暂无持仓」，不影响写日记。'
+    : '总盈亏：'+fmtMoney(s.profit)+' · 收益率 '+fmtPct(s.pct)+' · 总市值 ¥'+s.value.toLocaleString('zh-CN',{maximumFractionDigits:2,minimumFractionDigits:2});
+  const id = $('j-asset').value;
+  if (!id){ $('sp-asset').textContent = '未关联资产'; return; }
+  const h = H.find(x=>x.id===id);
+  if (!h){ $('sp-asset').textContent = '未关联资产'; return; }
+  const p = profitOf(h);
+  $('sp-asset').textContent = p.empty
+    ? '「'+h.name+'」暂无现价，快照会如实记录，以后补上就行'
+    : '「'+h.name+'」盈亏：'+fmtMoney(p.profit)+' · 收益率 '+fmtPct(p.pct)+' · 现价 ¥'+fmtNum(h.current_price);
+}
+
+function entryCardHtml(j){
+  const h = j.asset_link ? H.find(x=>x.id===j.asset_link) : null;
+  const linkName = h ? h.name : (j.asset_link ? '(已删除持仓)' : '');
+  const moodTag = j.mood ? `<span class="tag tag--mood">${MOJI[j.mood]||''} ${escapeHtml(j.mood)}</span>` : '';
+  const linkTag = linkName ? `<span class="tag tag--link">📌 ${escapeHtml(linkName)}</span>` : '';
+  const why = (j.reason_tags && j.reason_tags.length) ? j.reason_tags.map(t=>`<span class="tag tag--why">${escapeHtml(t)}</span>`).join('') : '';
+  return `
+  <div class="entry__top">
+    <div>
+      <div class="entry__date tnum">${j.date}</div>
+      <div class="entry__tags">${moodTag}${linkTag}${why}</div>
+    </div>
+    <button type="button" class="btn btn--sm btn--risk" data-delj="${j.id}" aria-label="删除这篇日记">🗑 删除</button>
+  </div>
+  <div class="entry__body">${escapeHtml(j.content)}</div>
+  ${(j.snapshot_total || j.snapshot_asset) ? `<div class="entry__snap">
+    ${j.snapshot_total ? `<div>🖇 总账快照 · ${escapeHtml(j.snapshot_total)}</div>` : ''}
+    ${j.snapshot_asset ? `<div>💹 关联快照 · ${escapeHtml(j.snapshot_asset)}</div>` : ''}
+  </div>` : ''}`;
+}
+
+$('jm-save-quick').addEventListener('click', submitJournal);
+$('jm-save').addEventListener('click', submitJournal);
+function submitJournal(){
+  const date = $('j-date').value || todayStr();
+  const content = $('j-content').value.trim();
+  if (!content){ showToast('先写一句今天的想法吧，一句也行','warning','内容还是空的'); showJStep(1); $('j-content').focus(); return; }
+  const assetId = $('j-asset').value || '';
+  const mood = moodVal();
+  const tags = reasonVals();
+  const s = portfolio();
+  const snapTotal = H.length === 0
+    ? '当日盈亏数据暂不可用（暂无持仓）'
+    : '总盈亏：'+fmtMoney(s.profit)+'元 · 总市值 ¥'+s.value.toLocaleString('zh-CN',{maximumFractionDigits:2,minimumFractionDigits:2})+' · 收益率 '+fmtPct(s.pct);
+  let snapAsset = '';
+  if (assetId){
+    const h = H.find(x=>x.id===assetId);
+    if (h){
+      const p = profitOf(h);
+      snapAsset = p.empty
+        ? h.name+'盈亏快照：暂无现价，以后手动补充'
+        : h.name+'盈亏：'+fmtMoney(p.profit)+'元 · 收益率 '+fmtPct(p.pct)+'（现价 ¥'+fmtNum(h.current_price)+'）';
+    }
+  }
+  const j = { id: uid(), date, content, asset_link: assetId, mood, reason_tags: tags, snapshot_total: snapTotal, snapshot_asset: snapAsset, version: VERSION };
+  J.push(j);
+  saveJ(); renderAll();
+  $('js-card').innerHTML = entryCardHtml(j);
+  showJStep(3);
+  showToast('复盘已保存','success');
+}
+
+/* ---------- history: search + list ---------- */
+function renderJournals(){
+  const q = $('f-q').value.trim().toLowerCase();
+  const fa = $('f-asset').value, fm = $('f-mood').value;
+  let arr = J.slice();
+  if (calDay) arr = arr.filter(j=>j.date===calDay);
+  if (fa) arr = arr.filter(j=>j.asset_link===fa);
+  if (fm) arr = arr.filter(j=>j.mood===fm);
+  if (q) arr = arr.filter(j=>{
+    if (j.content.toLowerCase().includes(q)) return true;
+    const h = j.asset_link ? H.find(x=>x.id===j.asset_link) : null;
+    return h && h.name.toLowerCase().includes(q);
+  });
+  arr.sort((a,b)=> a.date < b.date ? 1 : (a.date > b.date ? -1 : 0));
+  $('line-count').textContent = J.length
+    ? (arr.length + ' / ' + J.length + ' 条记录')
+    : '0 条记录';
+
+  const list = $('journal-list');
+  if (!J.length){
+    list.innerHTML = `
+      <div class="card empty">
+        <span class="glyph">📔</span>
+        <span class="t">还没有日记</span>
+        <span class="s">写下第一篇，这里就会变成你最想回看的地方。</span>
+        <button type="button" class="btn btn--accent" data-act="new-entry" style="margin-top:6px">✍ 写第一篇</button>
+      </div>`;
+    return;
+  }
+  if (!arr.length){
+    list.innerHTML = `<div class="card empty"><span class="glyph">🔍</span><span class="t">没有找到匹配的日记</span><span class="s">换个关键词，或者清除筛选条件试试。</span></div>`;
+    return;
+  }
+  list.innerHTML = arr.map(j => `<article class="entry" id="j-${j.id}">${entryCardHtml(j)}</article>`).join('');
+}
+$('f-q').addEventListener('input', renderJournals);
+$('f-asset').addEventListener('change', renderJournals);
+$('f-mood').addEventListener('change', renderJournals);
+$('f-day-clear').addEventListener('click', ()=>{ calDay=''; renderJournals(); renderCalendar(); });
+
+/* ---------- calendar ---------- */
+function shiftCalendar(delta){ cal.setMonth(cal.getMonth()+delta); renderCalendar(); }
+function pickDay(full){
+  calDay = (calDay === full) ? '' : full;
+  if (calDay){
+    $('f-day-wrap').hidden = false;
+    $('f-day-label').textContent = calDay;
+  } else $('f-day-wrap').hidden = true;
+  renderCalendar(); renderJournals();
+  if (calDay) $('f-q').closest('.card').scrollIntoView({ behavior:'smooth', block:'start' });
+}
+function renderCalendar(){
+  const y = cal.getFullYear(), m = cal.getMonth();
+  $('cal-title').textContent = y + ' · ' + String(m+1).padStart(2,'0');
+  const dows = $('cal-dows');
+  if (!dows.children.length) dows.innerHTML = ['日','一','二','三','四','五','六'].map(d=>`<div class="cal-dow">${d}</div>`).join('');
+  const first = new Date(y, m, 1), last = new Date(y, m+1, 0).getDate(), prefix = first.getDay();
+  const prevLast = new Date(y, m, 0).getDate();
+  const cells = [];
+  for (let i=prefix-1; i>=0; i--) cells.push({ out:true, d: prevLast-i });
+  for (let d=1; d<=last; d++) cells.push({ out:false, d, full: `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}` });
+  while (cells.length % 7 !== 0) cells.push({ out:true, d:(cells.length && !cells[cells.length-1].out ? 1 : cells[cells.length-1].d+1) });
+  const set = new Set(J.map(j=>j.date));
+  const today = todayStr();
+  const total = cells.filter(c=>!c.out && set.has(c.full)).length;
+  $('cal-count').textContent = total ? total+' 篇' : '本月 0 篇';
+  $('cal-grid').innerHTML = cells.map(c=>{
+    if (c.out) return `<div class="cal-cell out">${c.d}</div>`;
+    const cls = ['cal-cell'];
+    if (set.has(c.full)) cls.push('has');
+    if (c.full===today) cls.push('today');
+    if (c.full===calDay) cls.push('picked');
+    return `<button type="button" class="${cls.join(' ')}" role="gridcell"
+      aria-label="${c.full}${set.has(c.full)?' · 已复盘':''}"
+      onclick="pickDay('${c.full}')">${c.d}</button>`;
+  }).join('');
+}
+
+/* ---------- delete journal (robust, reused V1 logic) ---------- */
+function deleteJournal(id){
+  try {
+    const t = J.find(j=>j.id===id);
+    if (!t) return showToast('这篇日记不存在或已删除','warning');
+    openConfirm('删除日记', '确定删除「'+t.date+'」这篇日记吗？此操作无法撤销。', ()=>{
+      const before = J.length;
+      J = J.filter(j=>j.id!==id);
+      if (J.length === before) return showToast('删除失败：未找到匹配日记','error');
+      try { saveJ(); } catch(err){ return showToast('写入失败：'+(err.message||String(err)),'error'); }
+      renderAll();
+      showToast('「'+t.date+'」的日记已删除','success');
+    });
+  } catch(e) { console.error(e); showToast('删除失败：'+(e.message||String(e)),'error'); }
+}
+
+/* ---------- home ---------- */
+function renderHome(){
+  const now = new Date();
+  const hr = now.getHours();
+  const greet = hr<11 ? '早上好 ☀️' : hr<14 ? '中午好 🍚' : hr<18 ? '下午好 ☕' : '晚上好 🌙';
+  $('home-greet').textContent = greet;
+  const wk = ['周日','周一','周二','周三','周四','周五','周六'][now.getDay()];
+  const label = '今天是 '+(now.getMonth()+1)+'月'+now.getDate()+'日 '+wk;
+  $('home-date-label').textContent = label;
+  $('hd-date').textContent = (now.getMonth()+1)+'/'+now.getDate()+' '+wk;
+  const t = todayStr();
+  const doneToday = J.some(j=>j.date===t);
+  const st = $('home-status');
+  st.textContent = doneToday ? '✅ 今天已经记录过了，真棒' : '今天还没记录';
+  st.className = 'pill ' + (doneToday ? 'pill--ok' : 'pill--wait');
+
+  const box = $('home-recent');
+  const latest = J.slice().sort((a,b)=> a.date < b.date ? 1 : (a.date > b.date ? -1 : 0))[0];
+  if (!latest){
+    box.innerHTML = `<div class="recap-empty"><span class="glyph">🗒️</span>写完的日记都会收在这里。<br/>写完第一篇，明天就能回看今天的自己。</div>`;
+  } else {
+    const snip = latest.content.length > 80 ? latest.content.slice(0,80)+'…' : latest.content;
+    const mood = latest.mood ? (MOJI[latest.mood]||'')+' ' : '';
+    box.innerHTML = `
+      <div class="recap-date tnum">${latest.date} ${mood}</div>
+      <div class="recap-snippet">${escapeHtml(snip)}</div>`;
+  }
+}
+
+/* ---------- export / import ---------- */
+function writeFallback(text, name, ext){
+  const blob = new Blob([text], { type:'text/plain;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = `${name}_${todayStr()}.${ext}`; a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 500);
+  showToast('剪贴板不可用，已改为下载文件','info');
+}
+function copyOrFallback(text, name, ext, okTitle){
+  if (navigator.clipboard && window.isSecureContext){
+    navigator.clipboard.writeText(text).then(
+      ()=>showToast(okTitle,'success','已复制到剪贴板'),
+      ()=>writeFallback(text,name,ext)
+    ).catch(()=>writeFallback(text,name,ext));
+  } else writeFallback(text,name,ext);
+}
+function copyAllJournals(){
+  if (!J.length) return showToast('还没有日记可导出','warning');
+  const lines = [...J].sort((a,b)=>a.date<b.date?1:-1).map(j=>{
+    const h = j.asset_link ? H.find(x=>x.id===j.asset_link) : null;
+    return [
+      `【${j.date}】`,
+      j.mood ? `心情：${j.mood}` : '',
+      h ? `关联：${h.name}` : '',
+      (j.reason_tags && j.reason_tags.length) ? `标签：${j.reason_tags.join(' / ')}` : '',
+      j.content,
+      j.snapshot_total ? `快照：${j.snapshot_total}` : '',
+      j.snapshot_asset ? `关联快照：${j.snapshot_asset}` : ''
+    ].filter(Boolean).join('\n');
+  });
+  copyOrFallback(lines.join('\n\n')+'\n','investment_journals','txt','全部日记已复制');
+}
+function copyHoldingsCSV(){
+  if (!H.length) return showToast('还没有持仓可导出','warning');
+  const cols = ['id','name','quantity','cost_price','buy_date','current_price','last_update','version'];
+  const esc = (v) => { v = v ?? ''; const s = String(v); return /[",]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s; };
+  const csv = '\uFEFF' + [cols.join(','), ...H.map(h=>cols.map(k=>esc(h[k])).join(','))].join('\n');
+  copyOrFallback(csv,'holdings','csv','持仓 CSV 已复制');
+}
+function exportJSON(){
+  const payload = { exported_at: new Date().toISOString(), version: VERSION, holdings: H, journals: J };
+  const blob = new Blob([JSON.stringify(payload,null,2)], { type:'application/json;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = `investment_diary_backup_${todayStr()}.json`; a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 500);
+  showToast('完整备份 JSON 已开始下载','success');
+}
+function importJSON(ev){
+  const file = ev.target.files && ev.target.files[0];
+  ev.target.value = '';
+  if (!file) return;
+  const r = new FileReader();
+  r.onload = () => {
+    try {
+      const data = JSON.parse(String(r.result||''));
+      if (!data || !Array.isArray(data.holdings) || !Array.isArray(data.journals)) throw new Error('文件格式不正确');
+      openConfirm('导入恢复', `将覆盖当前数据：${data.holdings.length} 条持仓，${data.journals.length} 篇日记。确定继续吗？`, ()=>{
+        H = data.holdings.map(h=>({ ...h, version: h.version||VERSION }));
+        J = data.journals.map(j=>({ ...j, version: j.version||VERSION }));
+        saveH(); saveJ(); renderAll();
+        showToast(`已恢复 ${H.length} 条持仓，${J.length} 篇日记`,'success','导入成功');
+      });
+    } catch(e) { showToast('JSON 解析失败：'+(e.message||String(e)),'error','导入失败'); }
+  };
+  r.onerror = () => showToast('文件读取失败','error');
+  r.readAsText(file,'utf-8');
+}
+$('btn-export-txt').addEventListener('click', copyAllJournals);
+$('btn-export-csv').addEventListener('click', copyHoldingsCSV);
+$('btn-backup').addEventListener('click', exportJSON);
+$('btn-import').addEventListener('click', ()=>$('import-file').click());
+$('import-file').addEventListener('change', importJSON);
+
+/* ---------- onboarding ---------- */
+let obIdx = 0;
+function renderOb(){
+  $('ob-track').style.transform = 'translateX(-' + (obIdx*100) + '%)';
+  $$('#ob-dots i').forEach((d,i)=>d.classList.toggle('on', i===obIdx));
+  $('ob-prev').style.visibility = obIdx===0 ? 'hidden' : 'visible';
+  $('ob-next').hidden = obIdx===2;
+  $('ob-start').hidden = obIdx!==2;
+}
+function showOnboarding(){ obIdx=0; renderOb(); $('onboarding').hidden=false; }
+function finishOnboarding(){
+  try { localStorage.setItem(K.O,'1'); } catch(_) {}
+  $('onboarding').hidden = true;
+}
+$('ob-prev').addEventListener('click', ()=>{ if(obIdx>0){ obIdx--; renderOb(); } });
+$('ob-next').addEventListener('click', ()=>{ if(obIdx<2){ obIdx++; renderOb(); } });
+$('ob-skip').addEventListener('click', finishOnboarding);
+$('ob-start').addEventListener('click', ()=>{ finishOnboarding(); openJournalModal(); });
+$('btn-replay-guide').addEventListener('click', showOnboarding);
+
+/* ---------- global render ---------- */
+function renderAll(){
+  populateSelects();
+  renderHoldings();
+  renderSummary();
+  renderJournals();
+  renderCalendar();
+  renderHome();
+}
+
+/* ---------- start ---------- */
+loadAll();
+const m0 = (location.hash||'').match(/^#\/(home|holdings|history|settings)$/);
+switchTab(m0 ? m0[1] : 'home');
+renderAll();
+if (localStorage.getItem(K.O) !== '1') setTimeout(showOnboarding, 250);
+</script>
+</body>
+</html>
